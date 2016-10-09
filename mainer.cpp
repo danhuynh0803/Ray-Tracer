@@ -30,8 +30,28 @@ vec3 color(const ray& r, hitable *world, int depth)
     {
       vec3 unit_direction = unit_vector(r.direction());
       float t = 0.5*(unit_direction.y() + 1.0f); 
-      return (1.0f - t)*vec3(1.0f, 1.0f, 1.0f) + t*vec3(0.5f, 0.7f, 1.0f); 
+      return (1.0f - t)*vec3(0.5f, 0.7f, 1.0f) + t*vec3(0.2f, 0.4f, 1.0f); 
    }
+}
+
+hitable *cornell_box()
+{
+  int n = 10;
+  hitable **list = new hitable*[n+1];
+
+  texture *red   = new constant_texture(vec3(.75, .25, .25));
+  texture *blue  = new constant_texture(vec3(.25, .25, .75));
+  texture *white = new constant_texture(vec3(.75, .75, .75));
+  
+  list[0] = new sphere(vec3(1e5+1, 40.8, 81.6), 1e5, new lambertian(red));    // right
+  list[1] = new sphere(vec3(-1e5+99, 40.8, 81.6), 1e5, new lambertian(blue)); // left
+  list[2] = new sphere(vec3(50, 40.8, 1e5), 1e5, new lambertian(white));      // back
+  list[3] = new sphere(vec3(50, 1e5, 81.6), 1e5, new lambertian(white));      // bottom
+  list[4] = new sphere(vec3(50, -1e5+81, 81.6), 1e5, new lambertian(white));  // top
+
+  //  list[5] = new sphere(vec3(50, 81.6-16.5, 81.6), 1.5, new lambertian(white));  // light
+
+  return new hitable_list(list, 5);
 }
 
 hitable *random_scene()
@@ -39,7 +59,7 @@ hitable *random_scene()
   int n = 500;
   hitable **list = new hitable*[n+1];
   texture *checker = new checker_texture(new constant_texture(vec3(0.2, 0.3, 0.9)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(checker));
+  list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(new constant_texture(vec3(0.3, 0.3, 0.3))));
 
   int i = 1;
   for (int a = -11; a < 11; ++a)
@@ -69,7 +89,7 @@ hitable *random_scene()
   list[i++] = new sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
   list[i++] = new sphere(vec3(-4, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
   list[i++] = new sphere(vec3( 4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
-
+  list[i++] = new sphere(vec3(0, 3, 0), 0.5, new lambertian(new constant_texture(vec3(1.0, 1.0, 1.0))));
   return new hitable_list(list, i);
 }
 
@@ -102,18 +122,18 @@ int main()
 {
   int nx = 1920;
   int ny = 1080;
-  int ns = 10;
+  int ns = 50;
   
   std::ofstream myfile;
   myfile.open("mainer.ppm");  
   myfile << "P3\n" << nx << " " << ny << "\n255\n";
 
   float R = cos(M_PI/4);
-    
-  hitable* world = two_spheres();
+
+  hitable* world = random_scene();
   
-  vec3 lookfrom(-8, 5, 5);
-  vec3 lookat(0, 0, 0);
+  vec3 lookfrom(13.0f ,3.0, 11.0);
+  vec3 lookat(0, 1.0, 0.0);
   float dist_to_focus = 10.0;
   float aperature = 0.0;
   
