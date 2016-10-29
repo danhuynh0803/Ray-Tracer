@@ -3,12 +3,13 @@
 #include <cfloat>
 #include <stdlib.h>
 
-#include "sphere.h"
-#include "plane.h"
-#include "moving_sphere.h"
-#include "hitable_list.h"
-#include "camera.h"
-#include "material.h"
+#include "include/sphere.h"
+#include "include/plane.h"
+#include "include/moving_sphere.h"
+#include "include/hitable_list.h"
+#include "include/camera.h"
+#include "include/material.h"
+#include "include/worley.h"
 
 vec3 color(const ray& r, hitable *world, int depth)
 {
