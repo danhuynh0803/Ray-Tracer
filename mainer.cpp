@@ -11,6 +11,19 @@
 #include "include/material.h"
 #include "include/worley.h"
 
+const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);    // Position of our light
+
+bool shadow(const hitable *world, const hit_record& rec)
+{
+  ray lightDir(rec.p, LIGHTPOS - rec.p, 0.0f);
+  hit_record temp; 
+  if (world->hit(lightDir, 0.001f, FLT_MAX, temp))
+    {
+      return true;
+    }
+  return false;
+}
+
 vec3 color(const ray& r, hitable *world, int depth)
 {
   hit_record rec;
@@ -18,7 +31,12 @@ vec3 color(const ray& r, hitable *world, int depth)
     {
       ray scattered;
       vec3 attenuation;
-      if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
+      // check if area should be shadowed 
+      if ( shadow(world, rec) )
+	{
+	  return vec3(0.0, 0.0, 0.0);
+	}		 	       
+      else if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
 	{
 	  return attenuation * color(scattered, world, depth + 1);
 	}
@@ -33,6 +51,23 @@ vec3 color(const ray& r, hitable *world, int depth)
       float t = 0.5*(unit_direction.y() + 1.0f); 
       return (1.0f - t)*vec3(1.0f, 1.0f, 1.0f) + t*vec3(0.5f, 0.7f, 1.0f); 
    }
+}
+
+hitable *multipass_scene()
+{
+  int n = 50;
+  hitable **list = new hitable*[n+1];
+  texture *checker = new checker_texture(new constant_texture(vec3(0.2, 0.6, 0.7)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+  list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(checker));
+  list[1] = new sphere(vec3(-4, 1, 2.0), 1.0, new lambertian(new constant_texture(vec3(0.8, 0.8, 0.2))));  
+  list[2] = new sphere(vec3(0, 1, 0), 1.0, new metal(vec3(0.7, 0.7, 0.7), 0.0));
+  list[3] = new sphere(vec3(4, 0.8, 0), 0.8, new dielectric(1.5));
+  list[4] = new sphere(vec3(2, 0.7, 2.0), 0.7, new metal(vec3(0.8, 0.8, 0.8), 0.1));
+  list[5] = new sphere(vec3(3, 0.3, 1.5), 0.3, new lambertian(new constant_texture(vec3(0.7, 0.1, 0.7))));
+  list[6] = new sphere(vec3(7, 0.5, -0.5), 0.5, new lambertian(new constant_texture(vec3(0.8, 0.5, 0.5))));
+  
+  return new hitable_list(list, 7);
+
 }
 
 hitable *random_scene()
@@ -74,15 +109,13 @@ hitable *random_scene()
   return new hitable_list(list, i);
 }
 
-hitable *two_spheres()
+hitable *shadow_test()
 {
-  int n = 50;
+  int n = 2;
   hitable **list = new hitable*[n+1];
-  texture *red_checker = new checker_texture(new constant_texture(vec3(0.8, 0.3, 0.2)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  texture *blue_checker = new checker_texture(new constant_texture(vec3(0.2, 0.3, 0.8)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  
-  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new lambertian(red_checker));
-  list[1] = new sphere(vec3(0, -0.5, 0), 0.5, new lambertian(blue_checker));
+  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.9)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new lambertian(new constant_texture(vec3(1.0f, 0.2f, 0.2f))));
+  list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
   return new hitable_list(list, 2);
 }
 
@@ -103,7 +136,7 @@ int main()
 {
   int nx = 1920;
   int ny = 1080;
-  int ns = 10;
+  int ns = 50;
   
   std::ofstream myfile;
   myfile.open("mainer.ppm");  
@@ -111,9 +144,9 @@ int main()
 
   float R = cos(M_PI/4);
     
-  hitable* world = two_spheres();
+  hitable* world = shadow_test();
   
-  vec3 lookfrom(-8, 5, 5);
+  vec3 lookfrom(5, 3.5, 3);
   vec3 lookat(0, 0, 0);
   float dist_to_focus = 10.0;
   float aperature = 0.0;
