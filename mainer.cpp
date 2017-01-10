@@ -3,15 +3,21 @@
 #include <cfloat>
 #include <stdlib.h>
 
-#include "include/sphere.h"
-#include "include/plane.h"
-#include "include/moving_sphere.h"
-#include "include/hitable_list.h"
-#include "include/camera.h"
-#include "include/material.h"
-#include "include/worley.h"
+#include "sphere.h"
+#include "plane.h"
+#include "moving_sphere.h"
+#include "hitable_list.h"
+#include "camera.h"
+#include "material.h"
 
 const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);    // Position of our light
+
+// Dimensions of image file
+const int WIDTH = 1920;
+const int HEIGHT = 1080;
+// Number of samples to perform for anti aliasing 
+const int SAMPLES = 50;
+
 
 bool shadow(const hitable *world, const hit_record& rec)
 {
@@ -31,24 +37,26 @@ vec3 color(const ray& r, hitable *world, int depth)
     {
       ray scattered;
       vec3 attenuation;
+      vec3 shade(1.0f, 1.0f, 1.0f);    // The darkening amount of a material if it has shadow, where 0 is completely black and 1 is completely lit
+
       // check if area should be shadowed 
       if ( shadow(world, rec) )
 	{
-	  return vec3(0.0, 0.0, 0.0);
+	  shade = vec3(0.1f, 0.1f, 0.1f);
 	}		 	       
-      else if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
+      if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
 	{
-	  return attenuation * color(scattered, world, depth + 1);
+	  return shade * attenuation * color(scattered, world, depth + 1);
 	}
       else
 	{
-	  return vec3(0.0, 0.0, 0.0);
+	  return vec3(0.0f, 0.0f, 0.0f);
 	}
     }
   else
     {
       vec3 unit_direction = unit_vector(r.direction());
-      float t = 0.5*(unit_direction.y() + 1.0f); 
+      float t = 0.5f*(unit_direction.y() + 1.0f); 
       return (1.0f - t)*vec3(1.0f, 1.0f, 1.0f) + t*vec3(0.5f, 0.7f, 1.0f); 
    }
 }
@@ -134,9 +142,9 @@ hitable *plane_scene()
 
 int main()
 {
-  int nx = 1920;
-  int ny = 1080;
-  int ns = 50;
+  int nx = WIDTH;
+  int ny = HEIGHT;
+  int ns = SAMPLES;
   
   std::ofstream myfile;
   myfile.open("mainer.ppm");  

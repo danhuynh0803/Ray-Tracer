@@ -116,6 +116,12 @@ class dielectric : public material
     return true;    
   }
   float ref_idx;
+
+  /* TODO:
+     Albedo not yet incorporated for dielectrics 
+     Check how tinted glasses work
+   */
+  vec3 albedo;
 };
 
 bool refract(const vec3& v, const vec3& n, float ni_over_nt, vec3& refracted)

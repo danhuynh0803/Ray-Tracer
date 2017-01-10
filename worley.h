@@ -11,7 +11,6 @@ class worley
 
   vec3 CellNoiseFunc(const vec3 &input, const int seed)
   {
-
     int lastRandom, numberFeaturePoints;
     vec3 randomDiff, featurePoint;
     int cubeX, cubeY, cubeZ;
