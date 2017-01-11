@@ -12,21 +12,33 @@
 #include "camera.h"
 #include "material.h"
 
-const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
-const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
-
 // Dimensions of image file
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 // Number of samples to perform for anti aliasing 
 const int SAMPLES = 50;
 
+const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
+const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
+const float SPEC_STRENGTH = 0.2f;
+
+// Camera position and direction
+const vec3 LOOKFROM(5, 3.5, 3);
+const vec3 LOOKAT(0, 0, 0);
+
 // diff is the diffuse coefficient proportional to the angle between the light direction and the surface normal
-bool shadow(const hitable *world, const hit_record& rec, float& diff)
+bool shadow(const hitable *world, const hit_record& rec, float& diff, float& spec)
 {
+  // Diffuse component
   ray lightDir(rec.p, unit_vector(LIGHTPOS - rec.p), 0.0f);
   hit_record temp;
   diff = std::max(dot(rec.normal, lightDir.direction()), 0.0f);
+
+  // Specular component
+  vec3 viewDir = unit_vector(LOOKFROM - rec.p);
+  vec3 reflectDir = reflect(-lightDir.direction(), rec.normal);
+  spec = SPEC_STRENGTH * std::pow(std::max(dot(viewDir, reflectDir), 0.0f), 32);  
+
   if (world->hit(lightDir, 0.001f, FLT_MAX, temp))
     {
       return true;
@@ -50,7 +62,7 @@ vec3 color(const ray& r, hitable *world, int depth)
       float spec;  // Specular coefficient 
       
       // check if area should be shadowed 
-      if ( shadow(world, rec, diff) )
+      if ( shadow(world, rec, diff, spec) )
 	{
 	  shade = vec3(0.1f, 0.1f, 0.1f);
 	}		 	       
@@ -62,7 +74,7 @@ vec3 color(const ray& r, hitable *world, int depth)
 	  // else
 	  //   return diff * attenuation * color(scattered, world, depth + 1);
 	  
-	  return diff * shade * attenuation * color(scattered, world, depth + 1);
+	  return (spec * vec3(1.0f, 1.0f, 1.0f)) + (diff * shade * attenuation * color(scattered, world, depth + 1));
 	}
       else
 	{
@@ -171,12 +183,10 @@ int main()
     
   hitable* world = shadow_test();
   
-  vec3 lookfrom(5, 3.5, 3);
-  vec3 lookat(0, 0, 0);
   float dist_to_focus = 10.0;
   float aperature = 0.0;
   
-  camera cam(lookfrom, lookat, vec3(0.0, 1.0, 0.0), 20.0, float(nx)/float(ny), aperature, dist_to_focus, 0.0, 1.0);
+  camera cam(LOOKFROM, LOOKAT, vec3(0.0, 1.0, 0.0), 20.0, float(nx)/float(ny), aperature, dist_to_focus, 0.0, 1.0);
   
   for (int j = ny - 1; j >= 0; --j)
     {
@@ -197,6 +207,11 @@ int main()
 	  int ig = int(255.99 * col.g());
 	  int ib = int(255.99 * col.b());
 
+	  // Make color all white if any component is greater than 255 due to specular highlights
+	  if (ir > 255 || ig > 255 || ib > 255) 
+	    ir = ig = ib = 255;
+
+	  
 	  myfile << ir << " " << ig << " " << ib << "\n";
 	}
     }
