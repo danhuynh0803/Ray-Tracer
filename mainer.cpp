@@ -1,7 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <cfloat>
+#include <algorithm>
 #include <stdlib.h>
+
 
 #include "sphere.h"
 #include "plane.h"
@@ -10,7 +12,8 @@
 #include "camera.h"
 #include "material.h"
 
-const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);    // Position of our light
+const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
+const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
 
 // Dimensions of image file
 const int WIDTH = 1920;
@@ -18,11 +21,12 @@ const int HEIGHT = 1080;
 // Number of samples to perform for anti aliasing 
 const int SAMPLES = 50;
 
-
-bool shadow(const hitable *world, const hit_record& rec)
+// diff is the diffuse coefficient proportional to the angle between the light direction and the surface normal
+bool shadow(const hitable *world, const hit_record& rec, float& diff)
 {
-  ray lightDir(rec.p, LIGHTPOS - rec.p, 0.0f);
-  hit_record temp; 
+  ray lightDir(rec.p, unit_vector(LIGHTPOS - rec.p), 0.0f);
+  hit_record temp;
+  diff = std::max(dot(rec.normal, lightDir.direction()), 0.0f);
   if (world->hit(lightDir, 0.001f, FLT_MAX, temp))
     {
       return true;
@@ -39,14 +43,26 @@ vec3 color(const ray& r, hitable *world, int depth)
       vec3 attenuation;
       vec3 shade(1.0f, 1.0f, 1.0f);    // The darkening amount of a material if it has shadow, where 0 is completely black and 1 is completely lit
 
+      // Phong lighting model 
+      vec3 ambient(0.1f, 0.1f, 0.1f);
+      // Have shade vary based on the angle
+      float diff;  // Diffuse coefficient (from 0.0 to 1.0);
+      float spec;  // Specular coefficient 
+      
       // check if area should be shadowed 
-      if ( shadow(world, rec) )
+      if ( shadow(world, rec, diff) )
 	{
 	  shade = vec3(0.1f, 0.1f, 0.1f);
 	}		 	       
       if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
 	{
-	  return shade * attenuation * color(scattered, world, depth + 1);
+	  
+	  // if (diff <= 1e-6)
+	  //   return shade * attenuation * color(scattered, world, depth + 1);
+	  // else
+	  //   return diff * attenuation * color(scattered, world, depth + 1);
+	  
+	  return diff * shade * attenuation * color(scattered, world, depth + 1);
 	}
       else
 	{
@@ -119,12 +135,13 @@ hitable *random_scene()
 
 hitable *shadow_test()
 {
-  int n = 2;
+  int n = 3;
   hitable **list = new hitable*[n+1];
   texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.9)), new constant_texture(vec3(0.9, 0.9, 0.9)));
   list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new lambertian(new constant_texture(vec3(1.0f, 0.2f, 0.2f))));
   list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-  return new hitable_list(list, 2);
+  list[2] = new sphere(vec3(-1, 0, 1), 0.5, new metal(vec3(0.8, 0.8, 0.8), 0.0f));
+  return new hitable_list(list, 3);
 }
 
 hitable *plane_scene()
