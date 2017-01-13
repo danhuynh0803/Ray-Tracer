@@ -13,14 +13,14 @@
 #include "material.h"
 
 // Dimensions of image file
-const int WIDTH = 640;
-const int HEIGHT = 480;
+const int WIDTH = 1920;
+const int HEIGHT = 1080;
 // Number of samples to perform for anti aliasing 
-const int SAMPLES = 100;
+const int SAMPLES = 300;
 const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
 //const vec3 LIGHTPOS(5, 3.5, 3);
 const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
-const float SPEC_STRENGTH = 0.2f;
+const float SPEC_STRENGTH = 0.090f;
 // Camera position and direction
 const vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
 const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
@@ -52,10 +52,9 @@ vec3 color(const ray& r, hitable *world, int depth)
     {
       ray scattered;
       vec3 attenuation;
-      vec3 shade(1.0f, 1.0f, 1.0f);    // The darkening amount of a material if it has shadow, where 0 is completely black and 1 is completely lit
 
       // Phong lighting model 
-      vec3 ambient(0.1f, 0.1f, 0.1f);
+      vec3 shade(1.0f, 1.0f, 1.0f);    // The darkening amount of a material if it has shadow, where 0 is completely black and 1 is completely lit
       // Have shade vary based on the angle
       float diff;  // Diffuse coefficient (from 0.0 to 1.0);
       float spec;  // Specular coefficient 
@@ -63,7 +62,8 @@ vec3 color(const ray& r, hitable *world, int depth)
       // check if area should be shadowed 
       if ( shadow(world, rec, diff, spec) )
 	{
-	  shade = vec3(0.2f, 0.2f, 0.2f);
+	  shade = vec3(0.3f, 0.3f, 0.3f);
+	  spec = 0.0f;
 	}		 	       
       if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
 	{
@@ -75,13 +75,14 @@ vec3 color(const ray& r, hitable *world, int depth)
 	  // TODO: Add softer shadows around the edges
 	  // Interpolate diffuse coefficient to be from 0.2 to 1.0
 	  //diff = 0.5f + (0.5f)*diff;
-	  float weight = 0.99f;
-	  return (spec * vec3(1.0f, 1.0f, 1.0f)) + (weight * diff * shade * attenuation * color(scattered, world, depth + 1)); 
+	  float weight = 0.98f;
+	  // return (spec * vec3(1.0f, 1.0f, 1.0f)) + (weight * diff * shade * attenuation) + ((1.0f-weight)* color(scattered, world, depth + 1));
+	  // return (spec * vec3(1.0f, 1.0f, 1.0f)) + (diff * shade * attenuation * color(scattered, world, depth + 1));
+	  return (spec * vec3(1.0f, 1.0f, 1.0f)) + (shade * attenuation * color(scattered, world, depth+1));
 	}
       else
 	{
-	  // return vec3(0.0f, 0.0f, 0.0f);
-	  return vec3(1.0f, 1.0f, 1.0f);
+	  return vec3(0.0f, 0.0f, 0.0f);	  
 	}
     }
   else
@@ -160,17 +161,28 @@ hitable *shadow_test()
   return new hitable_list(list, 4);
 }
 
+hitable *reflect_diffuse_test()
+{
+  int n = 4;
+  hitable **list = new hitable*[n+1];
+  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f));
+  list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
+  //list[2] = new sphere(vec3(-0.5, 3, 0), 1.0, new lambertian(new constant_texture(vec3(1.0f, 0.0f, 0.0f))));
+  //list[3] = new sphere(vec3(1, 0.3, 0), 0.3, new dielectric(1.5));
+  return new hitable_list(list, 2);
+}
+
 hitable *fresnel_test()
 {
   int n = 4;
   hitable **list = new hitable*[n+1];
-  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.9)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f));
+  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new dielectric(vec3(0.8f, 0.2f, 0.2f), 1.125f));
   list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-  list[2] = new sphere(vec3(0.5, 3, 0), 0.5, new lambertian(new constant_texture(vec3(0.1f, 0.8f, 0.7f))));
-  //list[3] = new sphere(vec3(1, 0.3, 0), 0.3, new dielectric(1.5));
-  return new hitable_list(list, 3);
+  return new hitable_list(list, 2);
 }
+
 
 hitable *plane_scene()
 {
