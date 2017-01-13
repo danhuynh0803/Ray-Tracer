@@ -55,19 +55,21 @@ vec3 color(const ray& r, hitable *world, int depth)
       vec3 shade(1.0f, 1.0f, 1.0f);    // The darkening amount of a material if it has shadow, where 0 is completely black and 1 is completely lit
       // Have shade vary based on the angle
       float spec;  // Specular coefficient 
-      
       // check if area should be shadowed 
       if ( shadow(world, rec, spec) )
 	{
+	  // TODO: Add softer shadows around the edges
 	  shade = vec3(0.3f, 0.3f, 0.3f);
 	  spec = 0.0f;
 	}		 	       
       if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
 	{
-	  // TODO: Add softer shadows around the edges
-	  float weight = 0.98f;
-	  // return (spec * vec3(1.0f, 1.0f, 1.0f)) + (weight * diff * shade * attenuation) + ((1.0f-weight)* color(scattered, world, depth + 1));
-	  return (spec * vec3(1.0f, 1.0f, 1.0f)) + (shade * attenuation * color(scattered, world, depth+1));
+	  /* reflective_weight is the percentage by which the object will reflect
+	     zero reflective_weight will give only diffuse reflection */	  
+	  float weight = rec.mat_ptr->reflect_weight;
+	  weight = 1.0f;
+	  return (spec * vec3(1.0f, 1.0f, 1.0f)) + shade*(((1 - weight) * attenuation) + (weight * attenuation * color(scattered, world, depth + 1)));
+	  //return (spec * vec3(1.0f, 1.0f, 1.0f)) + (shade * attenuation * color(scattered, world, depth+1));
 	}
       else
 	{
@@ -82,62 +84,6 @@ vec3 color(const ray& r, hitable *world, int depth)
    }
 }
 
-hitable *multipass_scene()
-{
-  int n = 50;
-  hitable **list = new hitable*[n+1];
-  texture *checker = new checker_texture(new constant_texture(vec3(0.2, 0.6, 0.7)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(checker));
-  list[1] = new sphere(vec3(-4, 1, 2.0), 1.0, new lambertian(new constant_texture(vec3(0.8, 0.8, 0.2))));  
-  list[2] = new sphere(vec3(0, 1, 0), 1.0, new metal(vec3(0.7, 0.7, 0.7), 0.0));
-  list[3] = new sphere(vec3(4, 0.8, 0), 0.8, new dielectric(1.5));
-  list[4] = new sphere(vec3(2, 0.7, 2.0), 0.7, new metal(vec3(0.8, 0.8, 0.8), 0.1));
-  list[5] = new sphere(vec3(3, 0.3, 1.5), 0.3, new lambertian(new constant_texture(vec3(0.7, 0.1, 0.7))));
-  list[6] = new sphere(vec3(7, 0.5, -0.5), 0.5, new lambertian(new constant_texture(vec3(0.8, 0.5, 0.5))));
-  
-  return new hitable_list(list, 7);
-
-}
-
-hitable *random_scene()
-{
-  int n = 500;
-  hitable **list = new hitable*[n+1];
-  texture *checker = new checker_texture(new constant_texture(vec3(0.2, 0.3, 0.9)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(checker));
-
-  int i = 1;
-  for (int a = -11; a < 11; ++a)
-    {
-      for (int b = -11; b < 11; ++b)
-	{
-	  float choose_mat = drand48();
-	  vec3 center(a+0.9*drand48(), 0.2, b+0.9*drand48());
-	  if ((center - vec3(4.0, 0.2, 0.0)).length() > 0.9)
-	    {
-	      if (choose_mat < 0.8) // diffuse
-		{
-		  list[i++] = new moving_sphere(center, center+vec3(0, 0.25*drand48(), 0), 0.0, 1.0, 0.2, new lambertian(new constant_texture(vec3(drand48()*drand48(), drand48()*drand48(), drand48()*drand48()))));
-		}
-	      else if (choose_mat < 0.95) // metal
-		{ 
-		  list[i++] = new sphere(center, 0.2, new metal(vec3(0.5*(1 + drand48()), 0.5*(1 + drand48()), 0.5*(1 + drand48())), 0.5*drand48()));
-		}
-	      else // glass
-		{
-		  list[i++] = new sphere(center, 0.2, new dielectric(1.5));
-		}
-		
-	    }
-	}
-    }
-  list[i++] = new sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
-  list[i++] = new sphere(vec3(-4, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
-  list[i++] = new sphere(vec3( 4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
-
-  return new hitable_list(list, i);
-}
-
 hitable *shadow_test()
 {
   int n = 4;
@@ -146,19 +92,21 @@ hitable *shadow_test()
   list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f));
   list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
   list[2] = new sphere(vec3(-1, 0, 1), 0.5, new metal(vec3(0.8, 0.8, 0.8), 0.0f));
-  list[3] = new sphere(vec3(1, 0.3, 0), 0.3, new dielectric(1.5));
+  list[3] = new sphere(vec3(1, 0.3, 0), 0.3, new dielectric(1.0));
   return new hitable_list(list, 4);
 }
 
 hitable *reflect_diffuse_test()
 {
-  int n = 4;
+  int n = 2;
   hitable **list = new hitable*[n+1];
   texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f));
+  //list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.0f));   // all diffuse
+  //list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.02f));  // 2% reflectance
+  //list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.5f));    // 50% reflectance
+  list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 1.0f));    // all reflectance
+  
   list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-  //list[2] = new sphere(vec3(-0.5, 3, 0), 1.0, new lambertian(new constant_texture(vec3(1.0f, 0.0f, 0.0f))));
-  //list[3] = new sphere(vec3(1, 0.3, 0), 0.3, new dielectric(1.5));
   return new hitable_list(list, 2);
 }
 
@@ -170,20 +118,6 @@ hitable *fresnel_test()
   list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new dielectric(vec3(0.8f, 0.2f, 0.2f), 1.125f));
   list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
   return new hitable_list(list, 2);
-}
-
-
-hitable *plane_scene()
-{
-  int n = 50;
-  hitable **list = new hitable*[n+1];
-
-  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.9)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  
-  list[0] = new plane(vec3(0, -10, 0), 5, 10,  vec3(0, -1, 0), new lambertian(checker));
-  list[1] = new sphere(vec3(1, 0, 0), 1, new dielectric(1.1));
-  list[2] = new sphere(vec3(2, 0.5, 0), 0.5, new metal(vec3(0.6, 0.5, 0.2), 0.3));
-  return new hitable_list(list, 3);
 }
 
 int main()
@@ -198,7 +132,7 @@ int main()
 
   float R = cos(M_PI/4);
     
-  hitable* world = shadow_test();
+  hitable* world = reflect_diffuse_test();
   
   float dist_to_focus = 10.0;
   float aperature = 0.0;
