@@ -109,10 +109,17 @@ class dielectric : public material
  public:
  dielectric(float ri) : ref_idx(ri)
   {
-    albedo = vec3(1.0f, 1.0f, 1.0f);
+    albedo = vec3(1.0f, 1.0f, 1.0f);    
     reflect_weight = 0.0f;
+    absorption = vec3(0.0f, 0.0f, 0.0f);
   }
- dielectric(const vec3& a, float ri) : albedo(a), ref_idx(ri) { reflect_weight = 0.0f; }
+ dielectric(const vec3& a, float ri) : albedo(a), ref_idx(ri)
+  {
+    reflect_weight = 0.0f;
+    absorption = vec3(0.0f, 0.0f, 0.0f);
+  }  
+ dielectric(const vec3& a, float ri, const vec3& absorp) : albedo(a), ref_idx(ri), absorption(absorp) { reflect_weight = 0.0f; }
+    
   virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
   {
     vec3 outward_normal;
@@ -120,17 +127,15 @@ class dielectric : public material
     float ni_over_nt;
 
     // Beer's law
-    vec3 absorption(8.0f, 8.0f, 0.1f);
-    float absorb_distance = rec.t_far - rec.t;
-    if (absorb_distance < 0.0f) { absorb_distance * -1.0f; }
-    
+    float absorb_distance = rec.t_far - rec.t;    
     float ar = exp(-absorption[0] * absorb_distance);
     float ag = exp(-absorption[1] * absorb_distance);
     float ab = exp(-absorption[2] * absorb_distance);
     vec3 absorb(ar, ag, ab);
-    
     attenuation = absorb * albedo;
-    //std::cout << "r:" << ar << " g:" << ag << " b:" << ab << std::endl;
+
+    // If absorb_distance is negative, then we've reached the backside of the sphere, so we do not apply beer's law
+    if (absorb_distance < 0) { attenuation = albedo; }
     
     vec3 refracted;
     // reflect based on fresnel effect
@@ -173,6 +178,7 @@ class dielectric : public material
   float ref_idx;
   vec3 albedo;
   float reflect_weight;
+  vec3 absorption;
 };
 
 bool refract(const vec3& v, const vec3& n, float ni_over_nt, vec3& refracted)
@@ -204,11 +210,6 @@ vec3 reflect(const vec3& v, const vec3& n)
   return v - 2*dot(v,n)*n;
 }
 
-vec3 beer()
-{
-  // vec3 absorb = exp(-OBJECT_ABSORB * absorbDistance);
-  return vec3(0,0,0);
-}
 
 vec3 random_in_unit_sphere()
 {

@@ -13,10 +13,10 @@
 #include "material.h"
 
 // Dimensions of image file
-const int WIDTH = 640;
-const int HEIGHT = 480;
+const int WIDTH = 1980;
+const int HEIGHT = 1020;
 // Number of samples to perform for anti aliasing 
-const int SAMPLES = 100;
+const int SAMPLES = 50;
 const int DEPTH = 50;
 const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
 //const vec3 LIGHTPOS(5, 3.5, 3);
@@ -68,17 +68,12 @@ vec3 color(const ray& r, hitable *world, int depth)
 	  /* reflective_weight is the percentage by which the object will reflect
 	     zero reflective_weight will give only diffuse reflection */	  
 	  float weight = rec.mat_ptr->reflect_weight;
-	  //return (spec * vec3(1.0f, 1.0f, 1.0f)) + shade*(((1 - weight) * attenuation) + (weight * color(scattered, world, depth + 1)));
-	  //return (spec * vec3(1.0f, 1.0f, 1.0f)) + (shade * attenuation * color(scattered, world, depth+1));
-	  //return (spec * vec3(1.0f, 1.0f, 1.0f)) + (attenuation * color(scattered, world, depth+1));	  
-
-	  //return shade*(weight*attenuation*color(scattered, world, depth+1));
-	  //return shade*attenuation*color(scattered, world, depth+1);
-	  return (spec*vec3(1.0f, 1.0f, 1.0f)) + shade*attenuation;
+	  
+	  return (spec*vec3(1.0f, 1.0f, 1.0f)) + shade*attenuation*color(scattered, world, depth+1);
 	}
       else
 	{
-	  return vec3(0.0f, 0.0f, 0.0f);	  
+	  return vec3(0.0f, 0.0f, 0.0f);
 	}
     }
   else
@@ -130,9 +125,12 @@ hitable *beer_test()
   int n = 4;
   hitable **list = new hitable*[n+1];
   texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f));
-  list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-  return new hitable_list(list, 2);
+  list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
+  list[1] = new sphere(vec3(1.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(8.0f, 8.0f, 0.3f)));  // with red, green absorption
+  //list[2] = new sphere(vec3(1.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(0.3f, 7.0f, 8.0f)));  // with blue, green absorption
+  list[2] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.0f));    // without absorption
+
+  return new hitable_list(list, 3);
 }
 
 
