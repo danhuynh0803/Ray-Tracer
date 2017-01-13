@@ -3,6 +3,8 @@
 
 struct hit_record;
 
+#include <algorithm>
+#include <math.h>
 #include "ray.h"
 #include "hitable.h"
 #include "texture.h"
@@ -16,72 +18,124 @@ float schlick(float cosine, float ref_idx);
 class material
 {
  public:
-  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const = 0;
+  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const = 0;
+
+  float reflect_weight;  // used to generate a mix of specular and diffuse 
 };
 
 class constant_color : public material
 {
  public:
-  constant_color() {}
- constant_color(const vec3& col) : albedo(col) {}
-  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const
-  {    
-    attenuation = albedo;
+  constant_color() { reflect_weight = 0.0f; }
+ constant_color(const vec3& col) : albedo(col) { reflect_weight = 0.0f; }
+  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
+  {
+    float diff = std::max(dot(rec.normal, unit_vector(light_pos - rec.p)), 0.0f); // Diffuse component
+    attenuation = diff * albedo;
     return true;
   }
   
   vec3 albedo;
+  float reflect_weight;
 };
 
 class lambertian: public material
 {
  public:
- lambertian(texture *a) : albedo(a) {}
-  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const
+ lambertian(texture *a) : albedo(a) { reflect_weight = 0.0f; }
+  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
   {
     vec3 target = rec.p + rec.normal + random_in_unit_sphere();    
     scattered = ray(rec.p, target - rec.p, r_in.time());
-    attenuation = albedo->value(0, 0, rec.p);
+    float diff = std::max(dot(rec.normal, unit_vector(light_pos - rec.p)), 0.0f); // Diffuse component
+    attenuation = diff * albedo->value(0, 0, rec.p);
     return true;
   }
   
   texture *albedo;
+  float reflect_weight;
 };
 
 class metal : public material
 {
  public:
+ metal(const vec3& a) : albedo(a)
+  {
+    fuzz = 0.0f;
+    reflect_weight = 1.0f;
+  }
+  
  metal(const vec3& a, float f) : albedo(a)
   {
     if (f < 1)
       fuzz = f;
     else
       fuzz = f;
+
+    reflect_weight = 1.0f;
   }
-  virtual bool scatter(const ray& ray_in, const hit_record& rec, vec3& attenuation, ray& scattered) const
+  
+ metal(const vec3& a, float f, float r) : albedo(a)
+  {
+    if (f < 1)
+      fuzz = f;
+    else
+      fuzz = f;
+
+    if (r < 0)
+      reflect_weight = 0.0f;
+    else if (r > 1)
+      reflect_weight = 1.0f;
+    else
+      reflect_weight = r;
+  }
+
+  virtual bool scatter(const ray& ray_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
   {
     vec3 reflected = reflect(unit_vector(ray_in.direction()), rec.normal);
-    scattered = ray(rec.p, reflected + fuzz*random_in_unit_sphere(), ray_in.time()); 
-    attenuation = albedo;
+    scattered = ray(rec.p, reflected + fuzz*random_in_unit_sphere(), ray_in.time());
+    float diff = std::max(dot(rec.normal, unit_vector(light_pos - rec.p)), 0.0f); // Diffuse component
+    attenuation = diff * albedo;
     return (dot(scattered.direction(), rec.normal) > 0);
   }
   
   vec3 albedo;
   float fuzz;
+  float reflect_weight;
 };
 
 class dielectric : public material
 {
  public:
- dielectric(float ri) : ref_idx(ri) {}
-  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const
+ dielectric(float ri) : ref_idx(ri)
+  {
+    albedo = vec3(1.0f, 1.0f, 1.0f);
+    reflect_weight = 0.0f;
+  }
+ dielectric(const vec3& a, float ri) : albedo(a), ref_idx(ri) { reflect_weight = 0.0f; }
+  virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
   {
     vec3 outward_normal;
     vec3 reflected = reflect(r_in.direction(), rec.normal);
     float ni_over_nt;
-    attenuation = vec3(1.0, 1.0, 1.0);
+
+    // Beer's law
+    vec3 absorption(8.0f, 8.0f, 0.1f);
+    float absorb_distance = rec.t_far - rec.t;
+    if (absorb_distance < 0.0f) { absorb_distance * -1.0f; }
+    
+    float ar = exp(-absorption[0] * absorb_distance);
+    float ag = exp(-absorption[1] * absorb_distance);
+    float ab = exp(-absorption[2] * absorb_distance);
+    vec3 absorb(ar, ag, ab);
+    
+    attenuation = absorb * albedo;
+    //std::cout << "r:" << ar << " g:" << ag << " b:" << ab << std::endl;
+    
     vec3 refracted;
+    // reflect based on fresnel effect
     float reflect_prob;
+    
     float cosine;
     
     if (dot(r_in.direction(), rec.normal) > 0)
@@ -115,13 +169,10 @@ class dielectric : public material
       }
     return true;    
   }
+  
   float ref_idx;
-
-  /* TODO:
-     Albedo not yet incorporated for dielectrics 
-     Check how tinted glasses work
-   */
   vec3 albedo;
+  float reflect_weight;
 };
 
 bool refract(const vec3& v, const vec3& n, float ni_over_nt, vec3& refracted)
@@ -140,6 +191,7 @@ bool refract(const vec3& v, const vec3& n, float ni_over_nt, vec3& refracted)
     }  
 }
 
+
 float schlick(float cosine, float ref_idx)
 {
   float r0 = (1 - ref_idx)/(1 + ref_idx);
@@ -150,6 +202,12 @@ float schlick(float cosine, float ref_idx)
 vec3 reflect(const vec3& v, const vec3& n)
 {
   return v - 2*dot(v,n)*n;
+}
+
+vec3 beer()
+{
+  // vec3 absorb = exp(-OBJECT_ABSORB * absorbDistance);
+  return vec3(0,0,0);
 }
 
 vec3 random_in_unit_sphere()

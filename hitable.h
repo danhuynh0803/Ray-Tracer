@@ -7,7 +7,8 @@ class material;
 
 struct hit_record
 {
-  float t; 
+  float t;
+  float t_far;
   vec3 p;
   vec3 normal;
   material *mat_ptr; // tells us how rays interact with the surface

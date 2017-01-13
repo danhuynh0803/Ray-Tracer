@@ -17,6 +17,7 @@ const int WIDTH = 640;
 const int HEIGHT = 480;
 // Number of samples to perform for anti aliasing 
 const int SAMPLES = 100;
+const int DEPTH = 50;
 const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
 //const vec3 LIGHTPOS(5, 3.5, 3);
 const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
@@ -62,14 +63,18 @@ vec3 color(const ray& r, hitable *world, int depth)
 	  shade = vec3(0.3f, 0.3f, 0.3f);
 	  spec = 0.0f;
 	}		 	       
-      if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
+      if (depth < DEPTH && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
 	{
 	  /* reflective_weight is the percentage by which the object will reflect
 	     zero reflective_weight will give only diffuse reflection */	  
 	  float weight = rec.mat_ptr->reflect_weight;
-	  weight = 1.0f;
-	  return (spec * vec3(1.0f, 1.0f, 1.0f)) + shade*(((1 - weight) * attenuation) + (weight * attenuation * color(scattered, world, depth + 1)));
+	  //return (spec * vec3(1.0f, 1.0f, 1.0f)) + shade*(((1 - weight) * attenuation) + (weight * color(scattered, world, depth + 1)));
 	  //return (spec * vec3(1.0f, 1.0f, 1.0f)) + (shade * attenuation * color(scattered, world, depth+1));
+	  //return (spec * vec3(1.0f, 1.0f, 1.0f)) + (attenuation * color(scattered, world, depth+1));	  
+
+	  //return shade*(weight*attenuation*color(scattered, world, depth+1));
+	  //return shade*attenuation*color(scattered, world, depth+1);
+	  return (spec*vec3(1.0f, 1.0f, 1.0f)) + shade*attenuation;
 	}
       else
 	{
@@ -120,6 +125,17 @@ hitable *fresnel_test()
   return new hitable_list(list, 2);
 }
 
+hitable *beer_test()
+{
+  int n = 4;
+  hitable **list = new hitable*[n+1];
+  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f));
+  list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
+  return new hitable_list(list, 2);
+}
+
+
 int main()
 {
   int nx = WIDTH;
@@ -132,7 +148,7 @@ int main()
 
   float R = cos(M_PI/4);
     
-  hitable* world = reflect_diffuse_test();
+  hitable* world = beer_test();
   
   float dist_to_focus = 10.0;
   float aperature = 0.0;
@@ -158,10 +174,10 @@ int main()
 	  int ig = int(255.99 * col.g());
 	  int ib = int(255.99 * col.b());
 
-	  // Make color all white if any component is greater than 255 due to specular highlights
-	  if (ir > 255 || ig > 255 || ib > 255) 
-	    ir = ig = ib = 255;
-
+	  // if any component is greater than max value, set it to 255
+	  if (ir > 255) ir = 255;
+	  if (ig > 255) ig = 255;
+	  if (ib > 255) ib = 255;
 	  
 	  myfile << ir << " " << ig << " " << ib << "\n";
 	}

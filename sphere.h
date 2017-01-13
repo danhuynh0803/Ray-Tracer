@@ -25,10 +25,12 @@ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const
   float discriminant = b*b - a*c;
   if (discriminant > 0)
     {      
-      float temp = (-b - sqrt(b*b - a*c))/(a);
+      float temp = (-b - sqrt(b*b - a*c))/(a);  // closest point on sphere from that ray
+      float temp_far = (-b + sqrt(b*b - a*c))/(a); // farthest point on sphere from that ray
       if (temp < t_max && temp > t_min)
 	{
 	  rec.t = temp;
+	  rec.t_far = temp_far;
 	  rec.p = r.point_at_parameter(rec.t);
 	  rec.normal = (rec.p - center) / radius; // divide by radius to normalize
 	  rec.mat_ptr = mat_ptr;
@@ -38,6 +40,7 @@ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const
       if (temp < t_max && temp > t_min)
 	{
 	  rec.t = temp;
+	  rec.t_far = (-b - sqrt(b*b - a*c))/(a); // for when different perspectives result in negative values
 	  rec.p = r.point_at_parameter(rec.t);
 	  rec.normal = (rec.p - center) / radius;
 	  rec.mat_ptr = mat_ptr;
