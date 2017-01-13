@@ -13,10 +13,10 @@
 #include "material.h"
 
 // Dimensions of image file
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
+const int WIDTH = 640;
+const int HEIGHT = 480;
 // Number of samples to perform for anti aliasing 
-const int SAMPLES = 300;
+const int SAMPLES = 100;
 const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
 //const vec3 LIGHTPOS(5, 3.5, 3);
 const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
@@ -26,13 +26,11 @@ const vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
 const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
 
 // diff is the diffuse coefficient proportional to the angle between the light direction and the surface normal
-bool shadow(const hitable *world, const hit_record& rec, float& diff, float& spec)
+bool shadow(const hitable *world, const hit_record& rec, float& spec)
 {
+  hit_record temp;
   // Diffuse component
   ray lightDir(rec.p, unit_vector(LIGHTPOS - rec.p), 0.0f);
-  hit_record temp;
-  diff = std::max(dot(rec.normal, lightDir.direction()), 0.0f);
-
   // Specular component
   vec3 viewDir = unit_vector(LOOKFROM - rec.p);
   vec3 reflectDir = reflect(-lightDir.direction(), rec.normal);
@@ -56,28 +54,19 @@ vec3 color(const ray& r, hitable *world, int depth)
       // Phong lighting model 
       vec3 shade(1.0f, 1.0f, 1.0f);    // The darkening amount of a material if it has shadow, where 0 is completely black and 1 is completely lit
       // Have shade vary based on the angle
-      float diff;  // Diffuse coefficient (from 0.0 to 1.0);
       float spec;  // Specular coefficient 
       
       // check if area should be shadowed 
-      if ( shadow(world, rec, diff, spec) )
+      if ( shadow(world, rec, spec) )
 	{
 	  shade = vec3(0.3f, 0.3f, 0.3f);
 	  spec = 0.0f;
 	}		 	       
-      if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
+      if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
 	{
-	  // if (diff <= 1e-6)
-	  //   return (spec * vec3(1.0f, 1.0f, 1.0f)) + (shade * attenuation * color(scattered, world, depth + 1));
-	  // else
-	  //   return (spec * vec3(1.0f, 1.0f, 1.0f)) + (diff * shade * attenuation * color(scattered, world, depth + 1));
-
 	  // TODO: Add softer shadows around the edges
-	  // Interpolate diffuse coefficient to be from 0.2 to 1.0
-	  //diff = 0.5f + (0.5f)*diff;
 	  float weight = 0.98f;
 	  // return (spec * vec3(1.0f, 1.0f, 1.0f)) + (weight * diff * shade * attenuation) + ((1.0f-weight)* color(scattered, world, depth + 1));
-	  // return (spec * vec3(1.0f, 1.0f, 1.0f)) + (diff * shade * attenuation * color(scattered, world, depth + 1));
 	  return (spec * vec3(1.0f, 1.0f, 1.0f)) + (shade * attenuation * color(scattered, world, depth+1));
 	}
       else
@@ -209,7 +198,7 @@ int main()
 
   float R = cos(M_PI/4);
     
-  hitable* world = fresnel_test();
+  hitable* world = shadow_test();
   
   float dist_to_focus = 10.0;
   float aperature = 0.0;
