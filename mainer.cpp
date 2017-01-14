@@ -27,22 +27,39 @@ float SPEC_STRENGTH = 0.5f;
 const vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
 const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
 
-// diff is the diffuse coefficient proportional to the angle between the light direction and the surface normal
-bool shadow(const hitable *world, const hit_record& rec, float& spec)
+const int SHADOW_DEPTH = 50;  // Total number of shadows to trace
+
+
+bool shadow(const hitable *world, const hit_record& rec)
 {
   hit_record temp;
-  ray lightDir(rec.p, unit_vector((LIGHTPOS - rec.p) + random_in_unit_sphere()), 0.0f); // Project ray to light with slight offset to make shadows more soft
-  ray lightDir_spec(rec.p, unit_vector(LIGHTPOS - rec.p), 0.0f); // Project ray to light with slight offset to make shadows more soft
-  // Specular component
-  vec3 viewDir = unit_vector(LOOKFROM - rec.p);
-  vec3 reflectDir = reflect(-lightDir_spec.direction(), rec.normal);
-  spec = SPEC_STRENGTH * std::pow(std::max(dot(viewDir, reflectDir), 0.0f), 16);  
-
+  ray lightDir(rec.p, unit_vector((LIGHTPOS - rec.p) + 0.1*random_in_unit_sphere()), 0.0f); // Project ray to light with slight offset to make shadows more soft  
   if (world->hit(lightDir, 0.001f, FLT_MAX, temp))
     {
       return true;
     }
   return false;
+}
+
+vec3 softShadow(const hitable *world, const hit_record& rec, float& spec)
+{
+  vec3 shade(0.3f, 0.3f, 0.3f);
+  vec3 nonshade(1.0f, 1.0f, 1.0f);
+  int count = 0; // Total number of shadow rays that intersected an object in the scene
+  for (int depth=0; depth < SHADOW_DEPTH; ++depth)
+    {
+      if (shadow(world, rec))
+	  count++;
+    }
+  // Compute specular highlight
+  if (count == 0) { 
+    vec3 viewDir = unit_vector(LOOKFROM - rec.p);
+    vec3 lightDir = unit_vector(LIGHTPOS - rec.p);
+    vec3 reflectDir = reflect(-lightDir, rec.normal);
+    spec = SPEC_STRENGTH * std::pow(std::max(dot(viewDir, reflectDir), 0.0f), 16);
+  //  spec *= (1.0f - float(count))/float(SHADOW_DEPTH);
+  }
+  return nonshade - (nonshade - shade)*(float(count)/float(SHADOW_DEPTH));
 }
 
 vec3 color(const ray& r, hitable *world, int depth)
@@ -52,18 +69,11 @@ vec3 color(const ray& r, hitable *world, int depth)
     {
       ray scattered;
       vec3 attenuation;
-
-      // Phong lighting model 
-      vec3 shade(1.0f, 1.0f, 1.0f);    // The darkening amount of a material if it has shadow, where 0 is completely black and 1 is completely lit
-      // Have shade vary based on the angle
       float spec;  // Specular coefficient 
-      // check if area should be shadowed 
-      if ( shadow(world, rec, spec) )
-	{
-	  // TODO: Add softer shadows around the edges
-	  shade = vec3(0.1f, 0.1f, 0.1f);
-	  spec = 0.0f;
-	}		 	       
+
+      // check if area should be shadowed
+      vec3 shade = softShadow(world, rec, spec);
+
       if (depth < DEPTH && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
 	{
 	  /* reflective_weight is the percentage by which the object will reflect
@@ -83,18 +93,6 @@ vec3 color(const ray& r, hitable *world, int depth)
       float t = 0.5f*(unit_direction.y() + 1.0f); 
       return (1.0f - t)*vec3(1.0f, 1.0f, 1.0f) + t*vec3(0.5f, 0.7f, 1.0f); 
    }
-}
-
-hitable *shadow_test()
-{
-  int n = 4;
-  hitable **list = new hitable*[n+1];
-  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.9)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-  list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f));
-  list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-  list[2] = new sphere(vec3(-1, 0, 1), 0.5, new metal(vec3(0.8, 0.8, 0.8), 0.0f));
-  list[3] = new sphere(vec3(1, 0.3, 0), 0.3, new dielectric(1.0));
-  return new hitable_list(list, 4);
 }
 
 hitable *reflect_diffuse_test()
@@ -133,6 +131,16 @@ hitable *beer_test()
   return new hitable_list(list, 3);
 }
 
+hitable *soft_shadow_test()
+{
+  int n = 2;
+  hitable **list = new hitable*[n+1];
+  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+  list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
+  list[1] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(18.0f, 18.0f, 0.3f)));  // with red, green absorption
+  return new hitable_list(list, 2);
+}
+
 
 int main()
 {
@@ -146,7 +154,8 @@ int main()
 
   float R = cos(M_PI/4);
     
-  hitable* world = beer_test();
+  hitable* world = soft_shadow_test();
+  //hitable* world = beer_test();
   
   float dist_to_focus = 10.0;
   float aperature = 0.0;
