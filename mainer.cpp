@@ -13,15 +13,16 @@
 #include "material.h"
 
 // Dimensions of image file
-const int WIDTH = 1980;
-const int HEIGHT = 1020;
+const int WIDTH = 1920;
+const int HEIGHT = 1080;
 // Number of samples to perform for anti aliasing 
 const int SAMPLES = 50;
 const int DEPTH = 50;
 const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
 //const vec3 LIGHTPOS(5, 3.5, 3);
 const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
-const float SPEC_STRENGTH = 0.090f;
+//float SPEC_STRENGTH = 0.090f;
+float SPEC_STRENGTH = 0.5f;
 // Camera position and direction
 const vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
 const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
@@ -30,11 +31,11 @@ const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
 bool shadow(const hitable *world, const hit_record& rec, float& spec)
 {
   hit_record temp;
-  // Diffuse component
-  ray lightDir(rec.p, unit_vector(LIGHTPOS - rec.p), 0.0f);
+  ray lightDir(rec.p, unit_vector((LIGHTPOS - rec.p) + random_in_unit_sphere()), 0.0f); // Project ray to light with slight offset to make shadows more soft
+  ray lightDir_spec(rec.p, unit_vector(LIGHTPOS - rec.p), 0.0f); // Project ray to light with slight offset to make shadows more soft
   // Specular component
   vec3 viewDir = unit_vector(LOOKFROM - rec.p);
-  vec3 reflectDir = reflect(-lightDir.direction(), rec.normal);
+  vec3 reflectDir = reflect(-lightDir_spec.direction(), rec.normal);
   spec = SPEC_STRENGTH * std::pow(std::max(dot(viewDir, reflectDir), 0.0f), 16);  
 
   if (world->hit(lightDir, 0.001f, FLT_MAX, temp))
@@ -60,7 +61,7 @@ vec3 color(const ray& r, hitable *world, int depth)
       if ( shadow(world, rec, spec) )
 	{
 	  // TODO: Add softer shadows around the edges
-	  shade = vec3(0.3f, 0.3f, 0.3f);
+	  shade = vec3(0.1f, 0.1f, 0.1f);
 	  spec = 0.0f;
 	}		 	       
       if (depth < DEPTH && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
@@ -104,8 +105,7 @@ hitable *reflect_diffuse_test()
   //list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.0f));   // all diffuse
   //list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.02f));  // 2% reflectance
   //list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.5f));    // 50% reflectance
-  list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 1.0f));    // all reflectance
-  
+  list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 1.0f));    // all reflectance  
   list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
   return new hitable_list(list, 2);
 }
@@ -126,9 +126,9 @@ hitable *beer_test()
   hitable **list = new hitable*[n+1];
   texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
   list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-  list[1] = new sphere(vec3(1.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(8.0f, 8.0f, 0.3f)));  // with red, green absorption
-  //list[2] = new sphere(vec3(1.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(0.3f, 7.0f, 8.0f)));  // with blue, green absorption
-  list[2] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.0f));    // without absorption
+  list[1] = new sphere(vec3(1.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(18.0f, 18.0f, 0.3f)));  // with red, green absorption
+  list[2] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.0f, vec3(0.3f, 17.0f, 18.0f)));  // with blue, green absorption
+  //list[2] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.0f));    // without absorption
 
   return new hitable_list(list, 3);
 }
