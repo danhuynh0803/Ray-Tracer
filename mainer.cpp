@@ -4,36 +4,41 @@
 #include <algorithm>
 #include <stdlib.h>
 
-
+// Defined primitive shapes
 #include "sphere.h"
 #include "plane.h"
+#include "triangle.h"
 #include "moving_sphere.h"
+
 #include "hitable_list.h"
 #include "camera.h"
 #include "material.h"
 
 // Dimensions of image file
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
+const int WIDTH = 640;
+const int HEIGHT = 480;
 // Number of samples to perform for anti aliasing 
-const int SAMPLES = 50;
-const int DEPTH = 50;
+const int SAMPLES = 30;
+const int DEPTH = 5;
 const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
 //const vec3 LIGHTPOS(5, 3.5, 3);
 const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
 //float SPEC_STRENGTH = 0.090f;
 float SPEC_STRENGTH = 0.5f;
 // Camera position and direction
-const vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
+//const vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
+const vec3 LOOKFROM(0.0f, 0.5f, -3.0f);
 const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
 
-const int SHADOW_DEPTH = 50;  // Total number of shadows to trace
-
-
+const int SHADOW_DEPTH = 1;  // Total number of shadows to trace
 bool shadow(const hitable *world, const hit_record& rec)
 {
   hit_record temp;
-  ray lightDir(rec.p, unit_vector((LIGHTPOS - rec.p) + 0.1*random_in_unit_sphere()), 0.0f); // Project ray to light with slight offset to make shadows more soft  
+  ray lightDir;
+  if (SHADOW_DEPTH > 1)
+    lightDir = ray(rec.p, unit_vector((LIGHTPOS - rec.p) + 0.1*random_in_unit_sphere()), 0.0f); // Project ray to light with slight offset to make shadows more soft
+  else
+    lightDir = ray(rec.p, unit_vector(LIGHTPOS - rec.p), 0.0f); // No offset for hard-shadows
   if (world->hit(lightDir, 0.001f, FLT_MAX, temp))
     {
       return true;
@@ -141,6 +146,38 @@ hitable *soft_shadow_test()
   return new hitable_list(list, 2);
 }
 
+hitable *triangle_test()
+{
+  int n = 2;
+  hitable **list = new hitable*[n+1];
+  texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+  list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
+
+  // Lambertian
+  list[1] = new triangle(
+  			 vec3(0.0f, 0.866f, 0.0f), // v0 
+  			 vec3(-0.5f, 0.0f, 0.0f),// v1
+  			 vec3(0.5f, 0.0f, 0.0f), // v2
+  			 new lambertian(new constant_texture(vec3(0.3f, 0.2f, 0.8f))));
+
+  // // Metal
+  // list[1] = new triangle(
+  // 			 vec3(0.0f, 0.866f, 0.0f), // v0 
+  // 			 vec3(-0.5f, 0.0f, 0.0f),// v1
+  // 			 vec3(0.5f, 0.0f, 0.0f), // v2
+  // 			 new metal(vec3(0.8f, 0.8f, 0.8f), 0.0f));    // all reflectance  
+
+  // // Dielectric (TO FIX)
+  // list[1] = new triangle(
+  // 			 vec3(0.0f, 0.866f, 0.0f), // v0 
+  // 			 vec3(-0.5f, 0.0f, 0.0f),// v1
+  // 			 vec3(0.5f, 0.0f, 0.0f), // v2
+  // 			 new dielectric(1.0f));
+
+  
+  return new hitable_list(list, 2);
+}
+
 
 int main()
 {
@@ -154,13 +191,14 @@ int main()
 
   float R = cos(M_PI/4);
     
-  hitable* world = soft_shadow_test();
+  //hitable* world = soft_shadow_test();
   //hitable* world = beer_test();
+  hitable* world = triangle_test();
   
   float dist_to_focus = 10.0;
   float aperature = 0.0;
   
-  camera cam(LOOKFROM, LOOKAT, vec3(0.0, 1.0, 0.0), 20.0, float(nx)/float(ny), aperature, dist_to_focus, 0.0, 1.0);
+  camera cam(LOOKFROM, LOOKAT, vec3(0.0, 1.0, 0.0), 40.0, float(nx)/float(ny), aperature, dist_to_focus, 0.0, 1.0);
   
   for (int j = ny - 1; j >= 0; --j)
     {
