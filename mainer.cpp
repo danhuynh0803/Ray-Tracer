@@ -3,7 +3,7 @@
 #include <cfloat>
 #include <algorithm>
 #include <stdlib.h>
-
+#include <ctime>
 // Defined primitive shapes
 #include "sphere.h"
 #include "plane.h"
@@ -19,20 +19,23 @@
 // Dimensions of image file
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
+
 // Number of samples to perform for anti aliasing 
 const int SAMPLES = 50;
 const int DEPTH = 20;
-//const vec3 LIGHTPOS(1.0, 1.5f, 0.0f);
-//const vec3 LIGHTPOS(1.0f, 3.0f, 0.0f);                        // Position of our point light
+
 const vec3 LIGHTPOS(-5, 3.5, 3);
-const vec3 DIRLIGHT = unit_vector(vec3(1.0f, 1.0f, 1.0f));    // Directional light
 float SPEC_STRENGTH = 0.090f;
-//float SPEC_STRENGTH = 0.5f;
+
 // Camera position and direction
-const vec3 LOOKFROM(-10.0f, 2.0f, 1.5f);
 //const vec3 LOOKFROM(-1.0f, 5.0f, -3.0f);
 //const vec3 LOOKFROM(2.0f, 2.0f, -1.0f);
+const vec3 LOOKFROM(-10.0f, 2.0f, 1.5f);
 const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
+
+// Render statistics
+unsigned long long int numRays = 0;
+unsigned long long int numIntersections = 0;
 
 const int SHADOW_DEPTH = 20;  // Total number of shadows to trace. 1 for hard shadows. Around >= 20 seems to give clean enough soft-shadows
 bool shadow(const hitable *world, const hit_record& rec)
@@ -85,6 +88,8 @@ vec3 color(const ray& r, hitable *world, int depth)
 
 		if (depth < DEPTH && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
 		{
+			numIntersections++;
+
 			/* reflective_weight is the percentage by which the object will reflect
 			   zero reflective_weight will give only diffuse reflection */
 			float weight = rec.mat_ptr->reflect_weight;
@@ -194,13 +199,10 @@ hitable *pyramid_test()
 
 int main()
 {
-	int nx = WIDTH;
-	int ny = HEIGHT;
-	int ns = SAMPLES;
-
+	
 	std::ofstream myfile;
 	myfile.open("mainer.ppm");
-	myfile << "P3\n" << nx << " " << ny << "\n255\n";
+	myfile << "P3\n" << WIDTH << " " << HEIGHT << "\n255\n";
 
 	float R = cos(M_PI / 4);
 
@@ -211,22 +213,24 @@ int main()
 	float dist_to_focus = 10.0;
 	float aperature = 0.0;
 
-	camera cam(LOOKFROM, LOOKAT, vec3(0.0, 1.0, 0.0), 30.0, float(nx) / float(ny), aperature, dist_to_focus, 0.0, 1.0);
+	camera cam(LOOKFROM, LOOKAT, vec3(0.0, 1.0, 0.0), 30.0, float(WIDTH) / float(HEIGHT), aperature, dist_to_focus, 0.0, 1.0);
 
-	for (int j = ny - 1; j >= 0; --j)
+	clock_t startTime = clock();
+	for (int j = HEIGHT - 1; j >= 0; --j)
 	{
-		for (int i = 0; i < nx; ++i)
+		for (int i = 0; i < WIDTH; ++i)
 		{
 			vec3 col(0.0f, 0.0f, 0.0f);
-			for (int s = 0; s < ns; ++s)
+			for (int s = 0; s < SAMPLES; ++s)
 			{
-				float u = float(i + drand48()) / float(nx);
-				float v = float(j + drand48()) / float(ny);
+				numRays++;
+				float u = float(i + drand48()) / float(WIDTH);
+				float v = float(j + drand48()) / float(HEIGHT);
 				ray r = cam.get_ray(u, v);
 				vec3 p = r.point_at_parameter(2.0f);
 				col += color(r, world, 0);
 			}
-			col /= float(ns);
+			col /= float(SAMPLES);
 			col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2]));
 			int ir = int(255.99 * col.r());
 			int ig = int(255.99 * col.g());
@@ -240,6 +244,16 @@ int main()
 			myfile << ir << " " << ig << " " << ib << "\n";
 		}
 	}
+
+	// Display performance stats
+	clock_t finishTime = clock();
+	int minutes = (finishTime - startTime) / (CLOCKS_PER_SEC * 60);
+	int seconds = ( (finishTime - startTime) / CLOCKS_PER_SEC ) % 60;
+	std::cout << "Render time    : " << minutes << "m " << ":" << seconds << "s" << std::endl;
+
+	std::cout << "# Primary Rays : " << numRays << std::endl;
+	std::cout << "# Intersections: " << numIntersections << std::endl;
+
 
 	return 0;
 }
