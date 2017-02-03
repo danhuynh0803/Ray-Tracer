@@ -13,6 +13,7 @@
 #include "hitable_list.h"
 #include "camera.h"
 #include "material.h"
+#include "all_scenes.h"
 
 # define M_PI  3.14159265358979323846  /* pi */
 
@@ -35,6 +36,7 @@ const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
 
 // Render statistics
 unsigned long long int numRays = 0;
+unsigned long long int numTests = 0;
 unsigned long long int numIntersections = 0;
 
 const int SHADOW_DEPTH = 20;  // Total number of shadows to trace. 1 for hard shadows. Around >= 20 seems to give clean enough soft-shadows
@@ -110,93 +112,6 @@ vec3 color(const ray& r, hitable *world, int depth)
 	}
 }
 
-hitable *reflect_diffuse_test()
-{
-	int n = 2;
-	hitable **list = new hitable*[n + 1];
-	texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-	//list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.0f));   // all diffuse
-	//list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.02f));  // 2% reflectance
-	//list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 0.5f));    // 50% reflectance
-	list[0] = new sphere(vec3(0.0f, 0.5f, 0.0f), 0.5, new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f, 1.0f));    // all reflectance  
-	list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-	return new hitable_list(list, 2);
-}
-
-hitable *fresnel_test()
-{
-	int n = 4;
-	hitable **list = new hitable*[n + 1];
-	texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-	list[0] = new sphere(vec3(0, 0.5, 0), 0.5, new dielectric(vec3(0.8f, 0.2f, 0.2f), 1.125f));
-	list[1] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-	return new hitable_list(list, 2);
-}
-
-hitable *beer_test()
-{
-	int n = 4;
-	hitable **list = new hitable*[n + 1];
-	texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-	list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-	list[1] = new sphere(vec3(0.0, 0.5, 0.5), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(18.0f, 18.0f, 0.3f)));  // with red, green absorption
-	//  list[2] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.5f, vec3(0.3f, 5.0f, 9.0f)));  // with blue, green absorption
-	list[2] = new sphere(vec3(-2.0, 0.8, 0), 0.8, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.5f, vec3(0.5f, 0.5f, 0.5f)));    // without absorption
-
-	return new hitable_list(list, 3);
-}
-
-hitable *soft_shadow_test()
-{
-	int n = 2;
-	hitable **list = new hitable*[n + 1];
-	texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-	list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-	list[1] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(18.0f, 18.0f, 0.3f)));  // with red, green absorption
-	return new hitable_list(list, 2);
-}
-
-hitable *pyramid_test()
-{
-	int n = 5;
-	hitable **list = new hitable*[n + 1];
-	texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
-	list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-	//list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new metal(vec3(0.5f, 0.5f, 0.5f), 0.0f));
-	// Lambertian
-
-	// back
-	list[1] = new triangle(
-		vec3(0.0f, 0.5, 0.0f), // v0 
-		vec3(-0.5f, 0.0f, -0.5f),// v1
-		vec3(+0.5f, 0.0f, -0.5f), // v2
-		new lambertian(new constant_texture(vec3(0.5f, 0.5f, 1.0f))));
-	//new metal(vec3(1.0f, 0.2f, 0.2f), 0.0f));
-	// TODO
-	// right
-	list[2] = new triangle(
-		vec3(0.0f, 0.5, 0.0f), // v0 
-		vec3(0.5f, 0.0f, -0.5f),// v1
-		vec3(0.5f, 0.0f, 0.5f), // v2
-		new lambertian(new constant_texture(vec3(0.2f, 1.0f, 0.2f))));
-
-	// front
-	list[3] = new triangle(
-		vec3(0.0f, 0.5, 0.0f), // v0 
-		vec3(0.5f, 0.0f, 0.5f),// v1
-		vec3(-0.5f, 0.0f, 0.5f), // v2
-		new lambertian(new constant_texture(vec3(0.5f, 1.0f, 1.0f))));
-
-	// left
-	list[4] = new triangle(
-		vec3(0.0f, 0.5, 0.0f), // v0 
-		vec3(-0.5f, 0.0f, -0.5f),// v1
-		vec3(-0.5f, 0.0f, +0.5f), // v2
-		new lambertian(new constant_texture(vec3(1.0f, 0.5f, 1.0f))));
-
-	return new hitable_list(list, 5);
-}
-
 int main()
 {
 	
@@ -206,6 +121,7 @@ int main()
 
 	float R = cos(M_PI / 4);
 
+	// Scenes are defined in the all_tests.h file
 	//hitable* world = soft_shadow_test();
 	hitable* world = beer_test();
 	//hitable* world = pyramid_test();
@@ -252,6 +168,7 @@ int main()
 	std::cout << "Render time    : " << minutes << "m " << ":" << seconds << "s" << std::endl;
 
 	std::cout << "# Primary Rays : " << numRays << std::endl;
+	std::cout << "# Inter Tests  : " << numTests << std::endl;
 	std::cout << "# Intersections: " << numIntersections << std::endl;
 
 
