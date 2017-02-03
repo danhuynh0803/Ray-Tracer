@@ -8,13 +8,14 @@
 class triangle : public hitable
 {
  public:
+  triangle() {}
  triangle(vec3 _v0, vec3 _v1, vec3 _v2, material* m) : v0(_v0), v1(_v1), v2(_v2), mat_ptr(m)
   {
     // Calculate normal, given the 3 vertices
     vec3 v1_v0 = v1 - v0;
     vec3 v2_v0 = v2 - v0;    
-    norm = cross(v1_v0, v2_v0);
-    //norm = cross(v2_v0, v1_v0); // flip normal
+    norm = unit_vector(cross(v1_v0, v2_v0));
+    //norm = unit_vector(cross(v2_v0, v1_v0)); // flip normal
   };
 
   virtual bool hit(const ray& r, float tmin, float tmax, hit_record& rec) const;

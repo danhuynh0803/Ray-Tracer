@@ -2,6 +2,7 @@
 #define CAMERA_H
 
 #include "ray.h"
+# define M_PI  3.14159265358979323846  /* pi */
 
 vec3 random_in_unit_disk()
 {

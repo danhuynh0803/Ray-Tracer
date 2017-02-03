@@ -31,7 +31,7 @@ class constant_color : public material
   virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
   {
     float diff = std::max(dot(rec.normal, unit_vector(light_pos - rec.p)), 0.0f); // Diffuse component
-    attenuation = diff * albedo;
+    attenuation = diff * albedo;    
     return true;
   }
   
