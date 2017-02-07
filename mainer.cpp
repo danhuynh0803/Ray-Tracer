@@ -163,8 +163,8 @@ int main()
 
 	// Display performance stats
 	clock_t finishTime = clock();
-	int minutes = (finishTime - startTime) / (CLOCKS_PER_SEC * 60);
-	int seconds = ( (finishTime - startTime) / CLOCKS_PER_SEC ) % 60;
+	float minutes = (finishTime - startTime) / (CLOCKS_PER_SEC * 60);
+	float seconds = ( (finishTime - startTime) / CLOCKS_PER_SEC ) % 60;
 	std::cout << "Render time    : " << minutes << "m " << ":" << seconds << "s" << std::endl;
 
 	std::cout << "# Primary Rays : " << numRays << std::endl;
