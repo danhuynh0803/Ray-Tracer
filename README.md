@@ -1,8 +1,8 @@
 # Ray-Tracer
-A project to be updated once I have a better understanding of physically-based lighting. 
+My implementation of Peter Shirley's "Ray Tracing in One Weekend."
 
 # Current Progress Render: 
-Current functionality defined: 
+New functionality added: 
 
 1) Diffuse and specular lighting with a single point light.
 
