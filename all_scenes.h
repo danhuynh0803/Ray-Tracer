@@ -7,6 +7,23 @@
 #include "hitable_list.h"
 #include "material.h"
 
+
+hitable *cornell_box_test()
+{
+	int n = 9; 
+	hitable **list = new hitable*[n + 1];
+	list[0] = new sphere(vec3(1e5f + 1.0f, 40.8f, 81.6f), 1e5f, new lambertian(new constant_texture(vec3(0.85f, 0.35f, 0.35f))));
+	list[1] = new sphere(vec3(-1e5f + 99.0f, 40.8f, 81.6f), 1e5f, new lambertian(new constant_texture(vec3(0.35f, 0.35f, 0.85f))));
+	list[2] = new sphere(vec3(50.0f, 40.8f, 1e5f), 1e5f, new lambertian(new constant_texture(vec3(0.75f, 0.75f, 0.75f))));
+	list[3] = new sphere(vec3(50.0f, 40.8f, -1e5f + 600.0f), 1e5f, new lambertian(new constant_texture(vec3(1.0f, 1.0f, 1.0f))));
+	list[4] = new sphere(vec3(50.0f, 1e5f, 81.6f), 1e5f, new lambertian(new constant_texture(vec3(0.75f, 0.75f, 0.75f))));
+	list[5] = new sphere(vec3(50.0f, -1e5f + 81.6f, 81.6f), 1e5f, new lambertian(new constant_texture(vec3(0.75f, 0.75f, 0.75f))));
+	list[6] = new sphere(vec3(27.0f, 16.5f, 47.0f), 16.5f, new lambertian(new constant_texture(vec3(0.9f, 0.1f, 0.1f))));
+	list[7] = new sphere(vec3(73.0f, 16.5f, 78.0f), 16.5f, new lambertian(new constant_texture(vec3(0.1f, 0.3f, 1.0f))));
+	list[8] = new sphere(vec3(50.0f, 681.6f - .77f, 81.6f), 600.0f, new lambertian(new constant_texture(vec3(0.0f, 0.0f, 0.0f))));
+}
+
+
 hitable *reflect_diffuse_test()
 {
 	int n = 2;
@@ -45,11 +62,14 @@ hitable *beer_test()
 
 hitable *soft_shadow_test()
 {
+	//vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
+	//vec3 LOOKAT(0.0f, 0.0f, 0.0f);
 	int n = 2;
 	hitable **list = new hitable*[n + 1];
 	texture *checker = new checker_texture(new constant_texture(vec3(0.3, 0.3, 0.3)), new constant_texture(vec3(0.9, 0.9, 0.9)));
 	list[0] = new sphere(vec3(0, -1000, 0), 1000.0f, new lambertian(checker));
-	list[1] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(18.0f, 18.0f, 0.3f)));  // with red, green absorption
+	//list[1] = new sphere(vec3(0.0, 0.5, 0), 0.5, new dielectric(vec3(1.0f, 1.0f, 1.0f), 1.125f, vec3(18.0f, 18.0f, 0.3f)));  // with red, green absorption
+	list[1] = new sphere(vec3(0.0, 0.5, 0), 0.5, new lambertian(new constant_texture(vec3(0.9, 0.8, 0.9))));
 	return new hitable_list(list, 2);
 }
 

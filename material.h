@@ -31,6 +31,9 @@ class constant_color : public material
   virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
   {
     float diff = std::max(dot(rec.normal, unit_vector(light_pos - rec.p)), 0.0f); // Diffuse component
+	float d = (light_pos - rec.p).length();
+	//float atten = 1.0f / (1.0 + 0.09*d + 0.032*d*d);
+	//float atten = 1.0f;
     attenuation = diff * albedo;    
     return true;
   }
@@ -39,6 +42,7 @@ class constant_color : public material
   float reflect_weight;
 };
 
+/* Original 
 class lambertian: public material
 {
  public:
@@ -54,6 +58,26 @@ class lambertian: public material
   
   texture *albedo;
   float reflect_weight;
+};
+*/
+
+// Add slight gloss
+class lambertian : public material
+{
+public:
+	lambertian(texture *a) : albedo(a) { reflect_weight = 0.0f; }
+	virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, const vec3& light_pos) const
+	{
+		vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
+		scattered = ray(rec.p, reflected + 0.01*random_in_unit_sphere(), r_in.time());
+
+		float diff = std::max(dot(rec.normal, unit_vector(light_pos - rec.p)), 0.0f); // Diffuse component
+		attenuation = diff * albedo->value(0, 0, rec.p);
+		return true;
+	}
+
+	texture *albedo;
+	float reflect_weight;
 };
 
 class metal : public material
@@ -144,35 +168,35 @@ class dielectric : public material
     float cosine;
     
     if (dot(r_in.direction(), rec.normal) > 0)
-      {
-	outward_normal = -rec.normal;
-	ni_over_nt = ref_idx;
-	cosine = ref_idx * dot(r_in.direction(), rec.normal) / r_in.direction().length();
-      }
+	{
+		outward_normal = -rec.normal;
+		ni_over_nt = ref_idx;
+		cosine = ref_idx * dot(r_in.direction(), rec.normal) / r_in.direction().length();
+	}
     else
-      {
-	outward_normal = rec.normal;
-	ni_over_nt = 1.0 / ref_idx;
-	cosine = -dot(r_in.direction(), rec.normal) / r_in.direction().length();
-      }
+	{
+		outward_normal = rec.normal;
+		ni_over_nt = 1.0 / ref_idx;
+		cosine = -dot(r_in.direction(), rec.normal) / r_in.direction().length();
+	}
     if (refract(r_in.direction(), outward_normal, ni_over_nt, refracted))
-      {
-	reflect_prob = schlick(cosine, ref_idx);
-      }
+	{
+		reflect_prob = schlick(cosine, ref_idx);
+	}
     else
-      {
-	scattered = ray(rec.p, reflected, r_in.time());
-	reflect_prob = 1.0;
-      }
+	{
+		scattered = ray(rec.p, reflected, r_in.time());
+		reflect_prob = 1.0;
+	}
     if (drand48() < reflect_prob)
-      {
-	scattered = ray(rec.p, reflected, r_in.time());
-      }
-    else
-      {
-	scattered = ray(rec.p, refracted, r_in.time());
-      }
-    return true;    
+	{
+		scattered = ray(rec.p, reflected, r_in.time());
+	}
+	else
+	{
+		scattered = ray(rec.p, refracted, r_in.time());
+	}
+	return true;
   }
   
   float ref_idx;

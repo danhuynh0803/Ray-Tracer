@@ -17,13 +17,21 @@
 
 # define M_PI  3.14159265358979323846  /* pi */
 
+// === Lighting configurations === //
+
+#define GLOBAL    // Using Global Illumination
+//#define DIRECT    // For direct shadow casting (Automatically off if GI is turned on)
+
+// =============================== //
+
+
 // Dimensions of image file
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
+const int WIDTH = 640;
+const int HEIGHT = 480;
 
 // Number of samples to perform for anti aliasing 
-const int SAMPLES = 50;
-const int DEPTH = 20;
+const int SAMPLES = 1024;
+const int DEPTH = 4;
 
 const vec3 LIGHTPOS(-5, 3.5, 3);
 float SPEC_STRENGTH = 0.090f;
@@ -31,15 +39,18 @@ float SPEC_STRENGTH = 0.090f;
 // Camera position and direction
 //const vec3 LOOKFROM(-1.0f, 5.0f, -3.0f);
 //const vec3 LOOKFROM(2.0f, 2.0f, -1.0f);
-const vec3 LOOKFROM(-10.0f, 2.0f, 1.5f);
-const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
+//const vec3 LOOKFROM(5.0f, 3.5f, 3.0f);
+//const vec3 LOOKAT(0.0f, 0.0f, 0.0f);
+const vec3 LOOKFROM(50.0f, 52.0f, 295.6f);
+const vec3 LOOKAT = unit_vector(vec3(0, -0.042612, -1));
+
 
 // Render statistics
 unsigned long long int numRays = 0;
 unsigned long long int numTests = 0;
 unsigned long long int numIntersections = 0;
 
-const int SHADOW_DEPTH = 20;  // Total number of shadows to trace. 1 for hard shadows. Around >= 20 seems to give clean enough soft-shadows
+const int SHADOW_DEPTH = 1;  // Total number of shadows to trace. 1 for hard shadows. Around >= 20 seems to give clean enough soft-shadows
 bool shadow(const hitable *world, const hit_record& rec)
 {
 	hit_record temp;
@@ -76,6 +87,7 @@ vec3 softShadow(const hitable *world, const hit_record& rec, float& spec)
 	return nonshade - (nonshade - shade)*(float(count) / float(SHADOW_DEPTH));
 }
 
+#ifndef GLOBAL
 vec3 color(const ray& r, hitable *world, int depth)
 {
 	hit_record rec;
@@ -94,10 +106,12 @@ vec3 color(const ray& r, hitable *world, int depth)
 
 			/* reflective_weight is the percentage by which the object will reflect
 			   zero reflective_weight will give only diffuse reflection */
-			float weight = rec.mat_ptr->reflect_weight;
-
-			return shade*attenuation*color(scattered, world, depth + 1);
-			//return (spec*vec3(1.0f, 1.0f, 1.0f)) + shade*attenuation*color(scattered, world, depth+1);	  
+			float weight = rec.mat_ptr->reflect_weight;			
+#ifdef DIRECT 
+			return (spec*vec3(1.0f, 1.0f, 1.0f)) + shade*attenuation*color(scattered, world, depth+1); // With shadows
+#else 
+			return attenuation*color(scattered, world, depth + 1);
+#endif
 		}
 		else
 		{
@@ -111,6 +125,43 @@ vec3 color(const ray& r, hitable *world, int depth)
 		return (1.0f - t)*vec3(1.0f, 1.0f, 1.0f) + t*vec3(0.5f, 0.7f, 1.0f);
 	}
 }
+#else 
+vec3 color(const ray& r, hitable *world, int depth)
+{
+	hit_record rec;
+	if (world->hit(r, 0.001f, FLT_MAX, rec))
+	{
+		ray scattered;
+		vec3 attenuation;
+		float spec;  // Specular coefficient 
+
+		// check if area should be shadowed
+		vec3 shade = softShadow(world, rec, spec);
+
+		if (depth < DEPTH && rec.mat_ptr->scatter(r, rec, attenuation, scattered, LIGHTPOS))
+		{
+			numIntersections++;
+
+			/* reflective_weight is the percentage by which the object will reflect
+			zero reflective_weight will give only diffuse reflection */
+			float weight = rec.mat_ptr->reflect_weight;
+
+			return attenuation*color(scattered, world, depth + 1);
+			//return (spec*vec3(1.0f, 1.0f, 1.0f)) + shade*attenuation*color(scattered, world, depth+1); // With shadows
+		}
+		else
+		{
+			return vec3(0.0f, 0.0f, 0.0f);
+		}
+	}
+	else
+	{
+		vec3 unit_direction = unit_vector(r.direction());
+		float t = 0.5f*(unit_direction.y() + 1.0f);
+		return (1.0f - t)*vec3(1.0f, 1.0f, 1.0f) + t*vec3(0.5f, 0.7f, 1.0f);
+	}
+}
+#endif 
 
 int main()
 {
@@ -122,14 +173,12 @@ int main()
 	float R = cos(M_PI / 4);
 
 	// Scenes are defined in the all_tests.h file
-	//hitable* world = soft_shadow_test();
-	hitable* world = beer_test();
-	//hitable* world = pyramid_test();
+	hitable* world = cornell_box_test();
 
 	float dist_to_focus = 10.0;
 	float aperature = 0.0;
 
-	camera cam(LOOKFROM, LOOKAT, vec3(0.0, 1.0, 0.0), 30.0, float(WIDTH) / float(HEIGHT), aperature, dist_to_focus, 0.0, 1.0);
+	camera cam(LOOKFROM, LOOKAT, vec3(0.0, 1.0, 0.0), 20.0, float(WIDTH) / float(HEIGHT), aperature, dist_to_focus, 0.0, 1.0);
 
 	clock_t startTime = clock();
 	for (int j = HEIGHT - 1; j >= 0; --j)
