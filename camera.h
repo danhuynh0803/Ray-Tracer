@@ -17,7 +17,7 @@ vec3 random_in_unit_disk()
 class camera
 {
  public:  
-  camera(vec3 lookfrom, vec3 lookat, vec3 up, float vfov, float aspect_ratio, float aperature, float focus_dist, float t0, float t1)    {
+  camera(vec3 lookfrom, vec3 lookat, vec3 up, float vfov, float aspect_ratio, float aperature, float focus_dist, float t0, float t1) {
     time0 = t0;
     time1 = t1;
     lens_radius = aperature / 2;

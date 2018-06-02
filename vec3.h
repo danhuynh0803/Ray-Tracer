@@ -32,9 +32,11 @@ class vec3
   inline vec3& operator /=(const float t);
 
   inline float length() const {
-    return sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]); }
+    return sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]); 
+  }
   inline float squared_length() const {
-    return (e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);}
+    return (e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);
+  }
   inline void unit_vector();
 
   float e[3];
@@ -50,10 +52,12 @@ inline std::ostream& operator<<(std::ostream &os, const vec3 &t) {
   return os;
 }
 
-inline void vec3::make_unit_vector() {
+/*
+inline void make_unit_vector() {
   float k = 1.0f / sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);
   e[0] *= k; e[1] *= k; e[2] *= k;
 }
+*/
 
 inline vec3 operator+(const vec3 &v1, const vec3 &v2) {
   return vec3(v1.e[0] + v2.e[0], v1.e[1] + v2.e[1], v1.e[2] + v2.e[2]);

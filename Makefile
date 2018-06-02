@@ -1,9 +1,26 @@
-all:
+CPP = g++
+CPPFLAGS = -pthread -lstdc++ -std=c++11 -g
+OFLAGS = -o
+OBJECTS = main.o
 
-mainer:
-	g++ mainer.cpp -o mainer -g
+ifeq ($(OS), Windows_NT)
+	BUILDEXE := rayffitica.exe
+	RM := del
+else 
+	BUILDEXE := rayffitica
+	RM := rm -rf
+endif
 
-clean:
-	del mainer.exe
-	del mainer
-	del *~
+.SUFFIXES: .o .cpp
+.cpp.o:
+	$(CPP) $(CPPFLAGS) -c $< $(OFLAGS) $@
+
+.PHONY: all clean 
+
+all: $(OBJECTS) build 
+
+build: $(OBJECTS)
+	$(CPP) $(CPPFLAGS) $(OFLAGS) $(BUILDEXE) $(OBJECTS)
+
+clean: 
+	$(RM) *.o rayffitica
